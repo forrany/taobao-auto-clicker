@@ -1,0 +1,12 @@
+{
+  "preCI.localCodeCheck.filter.whitePath": "",
+  "preCI.localCodeCheck.filter.skipPath": ".*/\\.codecc/.*,.*/\\.git,.*/\\.git/.*,.*/\\.svn/.*",
+  "preCI.localCodeCheck.preCommit": "none",
+  "preCI.localCodeCheck.prePush": "none",
+  "preCI.pipeline.yamlFilePath": "build.yml",
+  "preCI.localCodeCheck.toolType": "binary",
+  "preCI.localCodeCheck.checkerSet.Other": [
+    "standard_scc",
+    "opensource_sensitive_other"
+  ]
+}
