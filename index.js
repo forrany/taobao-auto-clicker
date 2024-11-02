@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         淘宝自动点击脚本
 // @namespace    http://tampermonkey.net/
-// @version      0.4
+// @version      0.5
 // @description  在指定时间自动点击淘宝网站上的指定元素,可控制开始和停止
+// @author       Vincent Ko (https://vincentko.top | https://github.com/forrany)
 // @match        *://*.taobao.com/*
 // @match        *://*.tmall.com/*
 // @grant        GM_setValue
@@ -270,6 +271,7 @@
         isActive: false,
         overlay: null,
         highlightElement: null,
+        currentPanel: null,
         
         enable() {
             if (this.isActive) return;
@@ -295,6 +297,13 @@
                 this.highlightElement.parentNode.removeChild(this.highlightElement);
             }
             
+            const panels = document.querySelectorAll('div[style*="z-index: 10002"]');
+            panels.forEach(panel => {
+                if (panel.parentNode) {
+                    panel.parentNode.removeChild(panel);
+                }
+            });
+            
             const controlPanel = document.getElementById(CONFIG.CONTROL_PANEL_ID);
             if (controlPanel) {
                 controlPanel.style.pointerEvents = 'auto';
@@ -303,6 +312,7 @@
             this.isActive = false;
             this.overlay = null;
             this.highlightElement = null;
+            this.currentPanel = null;
 
             document.removeEventListener('keydown', this.handleKeyPress);
         },
@@ -351,9 +361,14 @@
                 e.stopPropagation();
 
                 if (hoveredElement && hoveredElement !== this.overlay) {
+                    if (this.currentPanel && this.currentPanel.parentNode) {
+                        this.currentPanel.parentNode.removeChild(this.currentPanel);
+                    }
+
                     const selectors = this.generateSelectors(hoveredElement);
                     const panel = this.createSelectorPanel(selectors, hoveredElement, e.clientX, e.clientY);
                     document.body.appendChild(panel);
+                    this.currentPanel = panel;
                 }
             });
 
@@ -458,13 +473,7 @@
                     GM_setValue('targetSelector', selector);
                     UI.updateStatus();
                     
-                    if (panel.parentNode) {
-                        panel.parentNode.removeChild(panel);
-                    }
-                    
-                    setTimeout(() => {
-                        this.cleanup();
-                    }, 0);
+                    this.cleanup();
                 });
                 
                 selectorList.appendChild(item);
