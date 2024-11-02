@@ -22,6 +22,8 @@
 
 ## 使用说明
 
+![](https://pic-bed-1302552283.cos.ap-guangzhou.myqcloud.com/20241102112324.png?imageMogr2/format/webp)
+
 1. **设置执行时间**
    - 在控制面板中设置想要执行的具体时间
    - 支持精确到秒的时间设置
