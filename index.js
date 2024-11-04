@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         淘宝自动点击脚本
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  在指定时间自动点击淘宝网站上的指定元素,可控制开始和停止
 // @author       Vincent Ko (https://vincentko.top | https://github.com/forrany)
 // @match        *://*.taobao.com/*
@@ -17,6 +17,8 @@
     // 配置常量
     const CONFIG = {
         MAX_CLICKS: 20,
+        MAX_FIND_ATTEMPTS: 100,
+        FIND_INTERVAL: 100,
         STORAGE_KEY: 'autoClickState',
         CONTROL_PANEL_ID: 'autoClickControl'
     };
@@ -202,7 +204,7 @@
                 UI.updateStatus();
             });
 
-            // 控制按钮事件
+            // 控按钮事件
             document.getElementById('startAutoClick').addEventListener('click', () => Controller.start());
             document.getElementById('stopAutoClick').addEventListener('click', () => Controller.stop());
         },
@@ -211,12 +213,14 @@
             const statusText = document.getElementById('statusText');
             const timeStr = State.executeTime ? new Date(State.executeTime).toLocaleString() : '未设置';
             const selectorStr = State.targetSelector || '未设置';
+            const elements = document.querySelectorAll(State.targetSelector);
+            const totalElements = elements.length;
             
             statusText.innerHTML = `
                 当前状态: ${State.isRunning ? '运行中' : '已停止'}<br>
                 执行时间: ${timeStr}<br>
-                目标元素: ${selectorStr}<br>
-                点击次数: ${State.clickCount}/${CONFIG.MAX_CLICKS}
+                目标元素: ${selectorStr} (匹配到 ${totalElements} 个元素)<br>
+                点击次数: ${State.clickCount}/${CONFIG.MAX_CLICKS * Math.max(1, totalElements)}
             `;
         },
 
@@ -233,35 +237,83 @@
 
     // 点击控制器
     const ClickController = {
+        findAttempts: 0,
+
         async performClicks() {
+            this.findAttempts = 0;
+            
             for (let i = 0; i < CONFIG.MAX_CLICKS; i++) {
                 if (!State.isRunning) return false;
-                this.clickElement();
                 
-                if (this.checkElementInnerHTML()) {
-                    console.log('目标元素的innerHTML变为"去使用"，停止点击');
-                    return true;
+                const elements = await this.findElements();
+                if (!elements) {
+                    Controller.stop();
+                    alert(`未找到目标元素，已尝试 ${CONFIG.MAX_FIND_ATTEMPTS} 次，脚本已停止`);
+                    return false;
+                }
+
+                let allElementsProcessed = true;
+                for (const element of elements) {
+                    if (!State.isRunning) return false;
+                    
+                    if (this.checkElementInnerHTML(element)) {
+                        console.log('元素内容为"去使用"，跳过点击');
+                        continue;
+                    }
+                    
+                    element.click();
+                    State.clickCount++;
+                    console.log(`点击元素 (${State.clickCount}/${CONFIG.MAX_CLICKS * elements.length})`);
+                    
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                    
+                    if (this.checkElementInnerHTML(element)) {
+                        allElementsProcessed = false;
+                        break;
+                    }
                 }
                 
-                await new Promise(resolve => setTimeout(resolve, 10));
+                UI.updateStatus();
+                
+                if (allElementsProcessed) {
+                    console.log('所有元素处理完成，停止脚本');
+                    Controller.stop();
+                    alert('所有元素处理完成，脚本已停止');
+                    return false;
+                }
+            }
+            
+            // 达到最大点击次数，停止脚本
+            if (State.isRunning) {
+                Controller.stop();
+                alert('已达到最大点击次数，脚本已停止');
             }
             return false;
         },
         
-        clickElement() {
-            const element = document.querySelector(State.targetSelector);
-            if (element) {
-                element.click();
-                State.clickCount++;
-                console.log(`点击元素 (${State.clickCount}/${CONFIG.MAX_CLICKS})`);
-                UI.updateStatus();
-            } else {
-                console.log('未找到目标元素');
+        async findElements() {
+            while (this.findAttempts < CONFIG.MAX_FIND_ATTEMPTS) {
+                const elements = document.querySelectorAll(State.targetSelector);
+                if (elements.length > 0) {
+                    console.log(`找到 ${elements.length} 个目标元素`);
+                    return elements;
+                }
+                
+                this.findAttempts++;
+                console.log(`未找到目标元素，第 ${this.findAttempts} 次尝试`);
+                
+                document.getElementById('statusText').innerHTML = `
+                    当前状态: 查找目标元素中 (${this.findAttempts}/${CONFIG.MAX_FIND_ATTEMPTS})<br>
+                    目标选择器: ${State.targetSelector}
+                `;
+                
+                await new Promise(resolve => setTimeout(resolve, CONFIG.FIND_INTERVAL));
             }
+            
+            return null;
         },
         
-        checkElementInnerHTML() {
-            const element = document.querySelector(State.targetSelector);
+        checkElementInnerHTML(element) {
             return element && element.innerHTML.includes("去使用");
         }
     };
@@ -537,15 +589,8 @@
         },
 
         async executeClickSequence() {
-            while (State.isRunning) {
-                const hasPageChanged = await ClickController.performClicks();
-                if (hasPageChanged) {
-                    break;
-                }
-                console.log('刷新页面并重试');
-                State.save();
-                location.reload();
-                return;
+            if (State.isRunning) {
+                await ClickController.performClicks();
             }
         }
     };
