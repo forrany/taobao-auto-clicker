@@ -18,7 +18,7 @@
    - [Firefox 版本](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/)
 
 2. 点击下面的安装链接安装脚本：
-   [安装脚本](安装链接) <!-- 这里需要添加实际的安装链接 -->
+   [安装脚本](https://greasyfork.org/zh-CN/scripts/515773-%E6%B7%98%E5%AE%9D%E8%87%AA%E5%8A%A8%E7%82%B9%E5%87%BB%E8%84%9A%E6%9C%AC) <!-- 这里需要添加实际的安装链接 -->
 
 ## 使用说明
 
